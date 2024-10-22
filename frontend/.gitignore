@@ -25,3 +25,8 @@ dist-ssr
 
 # Vite
 .env.development
+
+#package-lock's
+package-lock.json
+pnpm-lock.json
+yarn.lock
