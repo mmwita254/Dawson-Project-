@@ -3,7 +3,7 @@ Transform: AWS::Serverless-2016-10-31
 Description: >
   serverless-pdf-chat
 
-  SAM Template for serverless-pdf-chat
+  SAM Template for Dawson's pdf chat
 
 Globals:
   Function:
@@ -15,6 +15,7 @@ Globals:
     Environment:
       Variables:
         LOG_LEVEL: INFO
+        OPENAI_API_KEY: !Ref OpenAI_API_Key  # Add OpenAI API key
     Layers:
       - !Sub arn:aws:lambda:${AWS::Region}:017000801446:layer:AWSLambdaPowertoolsPythonV2-Arm64:51
 
@@ -28,11 +29,13 @@ Parameters:
   Repository:
     Type: String
   ModelId:
-    Default: "anthropic.claude-3-sonnet-20240229-v1:0"
+    Default: "gpt-4.0-turbo"  # Use appropriate OpenAI model ID
     Type: String
   EmbeddingModelId:
-    Default: "amazon.titan-embed-text-v2:0"
+    Default: "text-embedding-ada-002"  # Use appropriate OpenAI embedding model
     Type: String
+  OpenAI_API_Key:
+    Type: String  # Parameter for OpenAI API Key
 
 Conditions:
   DeployToAmplifyHosting: !Equals
@@ -296,22 +299,16 @@ Resources:
       Timeout: 180
       MemorySize: 2048
       Policies:
-        - SQSPollerPolicy:
-            QueueName: !GetAtt EmbeddingQueue.QueueName
         - S3CrudPolicy:
             BucketName: !Ref DocumentBucket
         - DynamoDBCrudPolicy:
             TableName: !Ref DocumentTable
-        - Statement:
-            - Sid: "BedrockScopedAccess"
-              Effect: "Allow"
-              Action: "bedrock:InvokeModel"
-              Resource: !Sub "arn:aws:bedrock:*::foundation-model/${EmbeddingModelId}"
       Environment:
         Variables:
           DOCUMENT_TABLE: !Ref DocumentTable
           BUCKET: !Ref DocumentBucket
           EMBEDDING_MODEL_ID: !Ref EmbeddingModelId
+          OPENAI_API_KEY: !Ref OpenAI_API_Key  # Include OpenAI API Key
       Events:
         EmbeddingQueueEvent:
           Type: SQS
@@ -330,19 +327,13 @@ Resources:
             TableName: !Ref MemoryTable
         - S3CrudPolicy:
             BucketName: !Ref DocumentBucket
-        - Statement:
-            - Sid: "BedrockScopedAccess"
-              Effect: "Allow"
-              Action: "bedrock:InvokeModel"
-              Resource:
-                - !Sub "arn:aws:bedrock:*::foundation-model/${ModelId}"
-                - !Sub "arn:aws:bedrock:*::foundation-model/${EmbeddingModelId}"
       Environment:
         Variables:
           MEMORY_TABLE: !Ref MemoryTable
           BUCKET: !Ref DocumentBucket
           MODEL_ID: !Ref ModelId
           EMBEDDING_MODEL_ID: !Ref EmbeddingModelId
+          OPENAI_API_KEY: !Ref OpenAI_API_Key  # Include OpenAI API Key
       Events:
         Root:
           Type: Api
@@ -419,7 +410,6 @@ Resources:
     Properties:
       BranchName: main
       AppId: !GetAtt AmplifyApp.AppId
-      EnableAutoBuild: true
 
 Outputs:
   CognitoUserPool:
