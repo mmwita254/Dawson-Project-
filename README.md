@@ -3,7 +3,7 @@ GPT for Dawson Group that harnesses Generative AI for information retrieval.
 
 ## Key features
 
-- [Amazon Bedrock](https://aws.amazon.com/de/bedrock/) for serverless embedding and inference
+- [OpenAI](https://openai.com/) for serverless embedding and inference
 - [LangChain](https://github.com/hwchase17/langchain) to orchestrate a Q&A LLM chain
 - [FAISS](https://github.com/facebookresearch/faiss) vector store
 - [Amazon DynamoDB](https://aws.amazon.com/dynamodb/) for serverless conversational memory
