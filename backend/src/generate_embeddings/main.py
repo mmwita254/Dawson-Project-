@@ -10,6 +10,7 @@ from langchain_openai.embeddings import OpenAIEmbeddings  # Import OpenAIEmbeddi
 DOCUMENT_TABLE = os.environ["DOCUMENT_TABLE"]
 BUCKET = os.environ["BUCKET"]
 OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]  # Ensure you set your OpenAI API key
+OpenAI_EMBEDDING_MODEL_ID = os.environ["OpenAI_EMBEDDING_MODEL_ID"]
 
 s3 = boto3.client("s3")
 ddb = boto3.resource("dynamodb")
@@ -41,7 +42,9 @@ def lambda_handler(event, context):
 
     # Initialize OpenAI embeddings
     embeddings = OpenAIEmbeddings(
-        openai_api_key=OPENAI_API_KEY  # Pass the OpenAI API key
+        openai_api_key=OPENAI_API_KEY,  # Pass the OpenAI API key
+        model=OpenAI_EMBEDDING_MODEL_ID
+
     )
 
     index_creator = VectorstoreIndexCreator(
