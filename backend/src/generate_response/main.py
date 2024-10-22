@@ -6,30 +6,21 @@ from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
 from langchain_community.chat_message_histories import DynamoDBChatMessageHistory
 from langchain_community.vectorstores import FAISS
-from langchain_aws.chat_models import ChatBedrock
-from langchain_aws.embeddings import BedrockEmbeddings
-
+from langchain_openai.chat_models import ChatOpenAI  # Import ChatOpenAI
+from langchain_openai.embeddings import OpenAIEmbeddings  # Import OpenAIEmbeddings
 
 MEMORY_TABLE = os.environ["MEMORY_TABLE"]
 BUCKET = os.environ["BUCKET"]
-MODEL_ID = os.environ["MODEL_ID"]
-EMBEDDING_MODEL_ID = os.environ["EMBEDDING_MODEL_ID"]
+OPENAI_MODEL_ID = os.environ["OPENAI_MODEL_ID"]  # Change this variable for OpenAI model
+OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]  # Ensure you set your OpenAI API key
 
 s3 = boto3.client("s3")
 logger = Logger()
 
 
 def get_embeddings():
-    bedrock_runtime = boto3.client(
-        service_name="bedrock-runtime",
-        region_name="us-east-1",
-    )
-
-    embeddings = BedrockEmbeddings(
-        model_id=EMBEDDING_MODEL_ID,
-        client=bedrock_runtime,
-        region_name="us-east-1",
-    )
+    # Initialize OpenAI embeddings
+    embeddings = OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY)
     return embeddings
 
 def get_faiss_index(embeddings, user, file_name):
@@ -52,11 +43,10 @@ def create_memory(conversation_id):
     )
     return memory
 
-def bedrock_chain(faiss_index, memory, human_input, bedrock_runtime):
-
-    chat = ChatBedrock(
-        model_id=MODEL_ID,
-        model_kwargs={'temperature': 0.0}
+def openai_chain(faiss_index, memory, human_input):
+    chat = ChatOpenAI(
+        model_name=OPENAI_MODEL_ID,  # Use OpenAI model ID
+        model_kwargs={'temperature': 0.0},
     )
 
     chain = ConversationalRetrievalChain.from_llm(
@@ -82,16 +72,12 @@ def lambda_handler(event, context):
     embeddings = get_embeddings()
     faiss_index = get_faiss_index(embeddings, user, file_name)
     memory = create_memory(conversation_id)
-    bedrock_runtime = boto3.client(
-        service_name="bedrock-runtime",
-        region_name="us-east-1",
-    )
 
-    response = bedrock_chain(faiss_index, memory, human_input, bedrock_runtime)
+    response = openai_chain(faiss_index, memory, human_input)
     if response:
-        print(f"{MODEL_ID} -\nPrompt: {human_input}\n\nResponse: {response['answer']}")
+        print(f"{OPENAI_MODEL_ID} -\nPrompt: {human_input}\n\nResponse: {response['answer']}")
     else:
-        raise ValueError(f"Unsupported model ID: {MODEL_ID}")
+        raise ValueError(f"Unsupported model ID: {OPENAI_MODEL_ID}")
 
     logger.info(str(response['answer']))
 

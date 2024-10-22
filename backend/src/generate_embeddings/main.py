@@ -1,15 +1,15 @@
-import os, json
+import os
+import json
 import boto3
 from aws_lambda_powertools import Logger
 from langchain.indexes import VectorstoreIndexCreator
-from langchain_aws.embeddings import BedrockEmbeddings
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.vectorstores import FAISS
-
+from langchain_openai.embeddings import OpenAIEmbeddings  # Import OpenAIEmbeddings
 
 DOCUMENT_TABLE = os.environ["DOCUMENT_TABLE"]
 BUCKET = os.environ["BUCKET"]
-EMBEDDING_MODEL_ID = os.environ["EMBEDDING_MODEL_ID"]
+OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]  # Ensure you set your OpenAI API key
 
 s3 = boto3.client("s3")
 ddb = boto3.resource("dynamodb")
@@ -39,15 +39,9 @@ def lambda_handler(event, context):
 
     loader = PyPDFLoader(f"/tmp/{file_name_full}")
 
-    bedrock_runtime = boto3.client(
-        service_name="bedrock-runtime",
-        region_name="us-east-1",
-    )
-
-    embeddings = BedrockEmbeddings(
-        model_id=EMBEDDING_MODEL_ID,
-        client=bedrock_runtime,
-        region_name="us-east-1",
+    # Initialize OpenAI embeddings
+    embeddings = OpenAIEmbeddings(
+        openai_api_key=OPENAI_API_KEY  # Pass the OpenAI API key
     )
 
     index_creator = VectorstoreIndexCreator(

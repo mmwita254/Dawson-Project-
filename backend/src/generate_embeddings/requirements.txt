@@ -4,5 +4,7 @@ faiss-cpu==1.7.4
 langchain==0.2.12
 langchain-community==0.2.10
 langchain-aws==0.1.13
+langchain-openai==0.2.0
 pypdf==3.17.0
 urllib3
+openai
