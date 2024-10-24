@@ -11,15 +11,15 @@ import {
   TrashIcon,
 } from "@heroicons/react/24/outline";
 import { del } from "aws-amplify/api";
-import {useNavigate} from "react-router-dom";
-import {useState} from "react";
+import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 
 interface DocumentDetailProps {
   document: Document;
   onDocumentDeleted?: (document?: Document) => void;
 }
 
-const DocumentDetail: React.FC<DocumentDetailProps> = ({document, onDocumentDeleted}) => {
+const DocumentDetail: React.FC<DocumentDetailProps> = ({ document, onDocumentDeleted }) => {
   const navigate = useNavigate();
   const [deleteStatus, setDeleteStatus] = useState<string>("idle");
 
@@ -82,7 +82,7 @@ const DocumentDetail: React.FC<DocumentDetailProps> = ({document, onDocumentDele
                 onClick={deleteDocument}
                 className="text-gray-700 hover:bg-gray-700 hover:text-white focus:ring-4 focus:outline-none focus:ring-blue-300 rounded-lg p-2"
               >
-                <TrashIcon className={`"w-4 h-4 mr-1 ${deleteStatus === "deleting" ? "animate-spin" : ""}`}/>
+                <TrashIcon className={`"w-4 h-4 mr-1 ${deleteStatus === "deleting" ? "animate-spin" : ""}`} />
               </button>
             </div>
           </div>

@@ -3,7 +3,7 @@ Transform: AWS::Serverless-2016-10-31
 Description: >
   serverless-pdf-chat
 
-  SAM Template for serverless-pdf-chat using OpenAI
+  SAM Template for serverless-pdf-chat
 
 Globals:
   Function:
@@ -27,13 +27,10 @@ Parameters:
       - amplify
   Repository:
     Type: String
-  OpenAI_MODEL_ID:
-    Default: "gpt-4"
+  OpenAIMODELID:
+    Default: "gpt-4o"
     Type: String
-  OpenAI_EMBEDDING_MODEL_ID:
-    Default: "text-embedding-ada-002"
-    Type: String
-  OpenAI_API_Key:
+  OpenAIAPIKey:
     Type: String
     Description: "Your OpenAI API Key"
 
@@ -65,6 +62,25 @@ Resources:
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
 
+  DocumentBucketPolicy:
+    Type: "AWS::S3::BucketPolicy"
+    Properties:
+      PolicyDocument:
+        Id: EnforceHttpsPolicy
+        Version: "2012-10-17"
+        Statement:
+          - Sid: EnforceHttpsSid
+            Effect: Deny
+            Principal: "*"
+            Action: "s3:*"
+            Resource:
+              - !Sub "arn:aws:s3:::${DocumentBucket}/*"
+              - !Sub "arn:aws:s3:::${DocumentBucket}"
+            Condition:
+              Bool:
+                "aws:SecureTransport": "false"
+      Bucket: !Ref DocumentBucket
+
   EmbeddingQueue:
     Type: AWS::SQS::Queue
     DeletionPolicy: Delete
@@ -72,6 +88,24 @@ Resources:
     Properties:
       VisibilityTimeout: 180
       MessageRetentionPeriod: 3600
+
+  EmbeddingQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref EmbeddingQueue
+      PolicyDocument:
+        Version: "2012-10-17"
+        Id: SecureTransportPolicy
+        Statement:
+          - Sid: AllowSecureTransportOnly
+            Effect: Deny
+            Principal: "*"
+            Action: "SQS:*"
+            Resource: "*"
+            Condition:
+              Bool:
+                aws:SecureTransport: false
 
   DocumentTable:
     Type: AWS::DynamoDB::Table
@@ -102,6 +136,47 @@ Resources:
         - AttributeName: SessionId
           AttributeType: S
       BillingMode: PAY_PER_REQUEST
+
+  CognitoUserPool:
+    Type: AWS::Cognito::UserPool
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      AutoVerifiedAttributes:
+        - email
+      UsernameAttributes:
+        - email
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+          RequireUppercase: true
+
+  CognitoUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref CognitoUserPool
+      ClientName: !Ref CognitoUserPool
+      GenerateSecret: false
+
+  Api:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: dev
+      Auth:
+        DefaultAuthorizer: CognitoAuthorizer
+        AddDefaultAuthorizerToCorsPreflight: false
+        Authorizers:
+          CognitoAuthorizer:
+            UserPoolArn: !GetAtt CognitoUserPool.Arn
+      Cors:
+        AllowOrigin: "'*'"
+        AllowHeaders: "'*'"
+        AllowMethods: "'*'"
 
   GeneratePresignedUrlFunction:
     Type: AWS::Serverless::Function
@@ -154,6 +229,66 @@ Resources:
                   - Name: suffix
                     Value: .pdf
 
+  GetDocumentFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/get_document/
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref DocumentTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref MemoryTable
+      Environment:
+        Variables:
+          DOCUMENT_TABLE: !Ref DocumentTable
+          MEMORY_TABLE: !Ref MemoryTable
+      Events:
+        Root:
+          Type: Api
+          Properties:
+            RestApiId: !Ref Api
+            Path: /doc/{documentid}/{conversationid}
+            Method: GET
+
+  GetAllDocuments:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/get_all_documents/
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref DocumentTable
+      Environment:
+        Variables:
+          DOCUMENT_TABLE: !Ref DocumentTable
+      Events:
+        Root:
+          Type: Api
+          Properties:
+            RestApiId: !Ref Api
+            Path: /doc
+            Method: GET
+
+  AddConversationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/add_conversation/
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DocumentTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref MemoryTable
+      Environment:
+        Variables:
+          DOCUMENT_TABLE: !Ref DocumentTable
+          MEMORY_TABLE: !Ref MemoryTable
+      Events:
+        Root:
+          Type: Api
+          Properties:
+            RestApiId: !Ref Api
+            Path: /doc/{documentid}
+            Method: POST
+
   GenerateEmbeddingsFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -167,12 +302,16 @@ Resources:
             BucketName: !Ref DocumentBucket
         - DynamoDBCrudPolicy:
             TableName: !Ref DocumentTable
+        #  - Statement:
+        #     - Sid: "BedrockScopedAccess"
+        #       Effect: "Allow"
+        #       Action: "bedrock:InvokeModel"
+        #       Resource: !Sub "arn:aws:bedrock:*::foundation-model/${EmbeddingModelId}"
       Environment:
         Variables:
           DOCUMENT_TABLE: !Ref DocumentTable
           BUCKET: !Ref DocumentBucket
-          OPENAI_EMBEDDING_MODEL_ID: !Ref OpenAI_EMBEDDING_MODEL_ID
-          OPENAI_API_KEY: !Ref OpenAI_API_Key
+          OPENAI_API_KEY: !Ref OpenAIAPIKey
       Events:
         EmbeddingQueueEvent:
           Type: SQS
@@ -195,8 +334,8 @@ Resources:
         Variables:
           MEMORY_TABLE: !Ref MemoryTable
           BUCKET: !Ref DocumentBucket
-          OPENAI_MODEL_ID: !Ref OpenAI_MODEL_ID
-          OPENAI_API_KEY: !Ref OpenAI_API_Key
+          OPENAI_MODEL_ID: !Ref OpenAIMODELID
+          OPENAI_API_KEY: !Ref OpenAIAPIKey
       Events:
         Root:
           Type: Api
@@ -228,6 +367,52 @@ Resources:
             RestApiId: !Ref Api
             Path: /doc/{documentid}
             Method: DELETE
+
+  AmplifyApp:
+    Type: AWS::Amplify::App
+    Condition: DeployToAmplifyHosting
+    Properties:
+      Name: !Sub "${AWS::StackName}-${AWS::Region}-${AWS::AccountId}"
+      Repository: !Ref Repository
+      BuildSpec: |
+        version: 1
+        applications:
+          - frontend:
+              phases:
+                preBuild:
+                  commands:
+                    - npm ci
+                build:
+                  commands:
+                    - npm run build
+              artifacts:
+                baseDirectory: dist
+                files:
+                  - '**/*'
+              cache:
+                paths:
+                  - node_modules/**/*
+            appRoot: frontend
+      AccessToken: "{{resolve:secretsmanager:serverless-pdf-chat-github-token}}"
+      EnvironmentVariables:
+        - Name: AMPLIFY_MONOREPO_APP_ROOT
+          Value: frontend
+        - Name: VITE_REGION
+          Value: !Ref AWS::Region
+        - Name: VITE_API_ENDPOINT
+          Value: !Sub "https://${Api}.execute-api.${AWS::Region}.${AWS::URLSuffix}/dev/"
+        - Name: VITE_USER_POOL_ID
+          Value: !Ref CognitoUserPool
+        - Name: VITE_USER_POOL_CLIENT_ID
+          Value: !Ref CognitoUserPoolClient
+
+  AmplifyBranch:
+    Type: AWS::Amplify::Branch
+    Condition: DeployToAmplifyHosting
+    Properties:
+      BranchName: main
+      AppId: !GetAtt AmplifyApp.AppId
+      EnableAutoBuild: true
 
 Outputs:
   CognitoUserPool:
