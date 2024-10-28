@@ -27,29 +27,29 @@ def set_doc_status(user_id, document_id, status):
         ExpressionAttributeValues={":docstatus": status},
     )
 
-def extract_images_and_ocr_from_pdf(pdf_path):
-    doc = fitz.open(pdf_path)
-    ocr_texts = []
+# def extract_images_and_ocr_from_pdf(pdf_path):
+#     doc = fitz.open(pdf_path)
+#     ocr_texts = []
     
-    for page_num in range(len(doc)):
-        page = doc.load_page(page_num)
-        images_in_page = page.get_images(full=True)
+#     for page_num in range(len(doc)):
+#         page = doc.load_page(page_num)
+#         images_in_page = page.get_images(full=True)
         
-        for img_index, img in enumerate(images_in_page):
-            xref = img[0]
-            base_image = doc.extract_image(xref)
-            image_bytes = base_image["image"]
-            image_ext = base_image["ext"]
-            image = Image.open(io.BytesIO(image_bytes))
+#         for img_index, img in enumerate(images_in_page):
+#             xref = img[0]
+#             base_image = doc.extract_image(xref)
+#             image_bytes = base_image["image"]
+#             image_ext = base_image["ext"]
+#             image = Image.open(io.BytesIO(image_bytes))
             
-            # Perform OCR on the image
-            ocr_text = pytesseract.image_to_string(image)
-            ocr_texts.append({
-                "page": page_num + 1,
-                "text": ocr_text
-            })
+#             # Perform OCR on the image
+#             ocr_text = pytesseract.image_to_string(image)
+#             ocr_texts.append({
+#                 "page": page_num + 1,
+#                 "text": ocr_text
+#             })
     
-    return ocr_texts
+#     return ocr_texts
 
 @logger.inject_lambda_context(log_event=True)
 def lambda_handler(event, context):
@@ -73,10 +73,10 @@ def lambda_handler(event, context):
         doc.metadata["page"] = i + 1
 
     # Extract and OCR text from images in the PDF
-    ocr_texts = extract_images_and_ocr_from_pdf(f"/tmp/{file_name_full}")
+    # ocr_texts = extract_images_and_ocr_from_pdf(f"/tmp/{file_name_full}")
 
-    # Combine OCR text with the original text from PyPDFLoader
-    combined_texts = docs + [ocr["text"] for ocr in ocr_texts]
+    # # Combine OCR text with the original text from PyPDFLoader
+    # combined_texts = docs + [ocr["text"] for ocr in ocr_texts]
 
     # Initialize OpenAI embeddings
     embeddings = OpenAIEmbeddings(
@@ -85,7 +85,7 @@ def lambda_handler(event, context):
     )
 
     # Create FAISS vectorstore from combined text (original + OCR text)
-    vectorstore = FAISS.from_texts(combined_texts, embeddings)
+    vectorstore = FAISS.from_texts(docs, embeddings)
 
     # Save the FAISS index locally
     vectorstore.save_local("/tmp")
