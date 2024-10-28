@@ -10,4 +10,5 @@ pypdf
 urllib3
 PyMuPDF==1.22.5 
 Pillow==10.0.0   
-pytesseract==0.3.10  
+pytesseract==0.3.10
+tesseract  

@@ -1,0 +1,6 @@
+# .editorconfig
+root = true
+
+[*]
+end_of_line = crlf  # or lf
+insert_final_newline = true
