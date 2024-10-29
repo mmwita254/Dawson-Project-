@@ -15,7 +15,7 @@ GPT for Dawson Group that harnesses Generative AI for information retrieval.
 
 ## How the application works
 
-![Serverless PDF Chat architecture](architecture.png "Serverless PDF Chat architecture")
+![Serverless PDF Chat architecture](updated_architecture.jpg "Serverless PDF Chat architecture")
 
 1. A user uploads a PDF document into an [Amazon Simple Storage Service](https://aws.amazon.com/s3/) (S3) bucket through a static web application frontend.
 1. This upload triggers a metadata extraction and document embedding process. The process converts the text in the document into vectors. The vectors are loaded into a vector index and stored in S3 for later use.
