@@ -25,19 +25,26 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
         <div className="grid gap-5">
           {conversation.messages.map((message, i) => (
             <div
-              className={`${
-                message.type === "ai"
-                  ? "justify-self-start w-fit rounded border border-gray-100 px-5 py-3.5 text-gray-800"
-                  : "" +
-                    "justify-self-end w-fit bg-slate-100 rounded border border-gray-100 px-5 py-3.5 text-gray-800"
-              }`}
+              className={`${message.type === "ai"
+                ? "justify-self-start w-fit rounded border border-gray-100 px-5 py-3.5 text-gray-800 relative"
+                : "justify-self-end w-fit bg-slate-100 rounded border border-gray-100 px-5 py-3.5 text-gray-800"
+                }`}
               key={i}
             >
               <div className="prose">
                 <p>{message.data.content}</p>
               </div>
+
+              {/* Display source info if present */}
+              {message.type === "ai" && message.data.source_info && message.data.source_info.length > 0 && (
+                <div className="text-xs text-gray-500 absolute bottom-2 right-3 italic">
+                  {/* Format the source_info as a comma-separated list */}
+                  Page {message.data.source_info.join(", ")}
+                </div>
+              )}
             </div>
           ))}
+
           {messageStatus === "loading" && (
             <div className="justify-self-start w-fit rounded border border-gray-100 px-5 py-3.5 text-gray-800">
               <img src={Loading} width={40} className="py-2 mx-2" />

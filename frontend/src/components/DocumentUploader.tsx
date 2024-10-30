@@ -10,9 +10,9 @@ import {
 } from "@heroicons/react/24/outline";
 
 interface DocumentUploaderProps {
-  onDocumentUploaded?:() => void
+  onDocumentUploaded?: () => void
 }
-const DocumentUploader: React.FC<DocumentUploaderProps> = ({onDocumentUploaded}) => {
+const DocumentUploader: React.FC<DocumentUploaderProps> = ({ onDocumentUploaded }) => {
   const [inputStatus, setInputStatus] = useState<string>("idle");
   const [buttonStatus, setButtonStatus] = useState<string>("ready");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -33,7 +33,7 @@ const DocumentUploader: React.FC<DocumentUploaderProps> = ({onDocumentUploaded})
   };
 
   const uploadFile = async () => {
-    if(selectedFile) {
+    if (selectedFile) {
       setButtonStatus("uploading");
       const response = await get({
         apiName: "serverless-pdf-chat",
@@ -174,6 +174,7 @@ const DocumentUploader: React.FC<DocumentUploaderProps> = ({onDocumentUploaded})
                   </button>
                 )}
                 {buttonStatus === "success" && (
+
                   <button
                     disabled
                     onClick={uploadFile}
@@ -182,7 +183,9 @@ const DocumentUploader: React.FC<DocumentUploaderProps> = ({onDocumentUploaded})
                   >
                     <CheckCircleIcon className="w-5 h-5 mr-1.5" />
                     Upload successful!
+
                   </button>
+
                 )}
               </div>
             </>

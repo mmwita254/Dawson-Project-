@@ -27,12 +27,12 @@ Parameters:
       - amplify
   Repository:
     Type: String
-  ModelId:
-    Default: "anthropic.claude-3-sonnet-20240229-v1:0"
+  OpenAIMODELID:
+    Default: "gpt-4o"
     Type: String
-  EmbeddingModelId:
-    Default: "amazon.titan-embed-text-v2:0"
+  OpenAIAPIKey:
     Type: String
+    Description: "Your OpenAI API Key"
 
 Conditions:
   DeployToAmplifyHosting: !Equals
@@ -302,16 +302,16 @@ Resources:
             BucketName: !Ref DocumentBucket
         - DynamoDBCrudPolicy:
             TableName: !Ref DocumentTable
-        - Statement:
-            - Sid: "BedrockScopedAccess"
-              Effect: "Allow"
-              Action: "bedrock:InvokeModel"
-              Resource: !Sub "arn:aws:bedrock:*::foundation-model/${EmbeddingModelId}"
+        #  - Statement:
+        #     - Sid: "BedrockScopedAccess"
+        #       Effect: "Allow"
+        #       Action: "bedrock:InvokeModel"
+        #       Resource: !Sub "arn:aws:bedrock:*::foundation-model/${EmbeddingModelId}"
       Environment:
         Variables:
           DOCUMENT_TABLE: !Ref DocumentTable
           BUCKET: !Ref DocumentBucket
-          EMBEDDING_MODEL_ID: !Ref EmbeddingModelId
+          OPENAI_API_KEY: !Ref OpenAIAPIKey
       Events:
         EmbeddingQueueEvent:
           Type: SQS
@@ -330,19 +330,12 @@ Resources:
             TableName: !Ref MemoryTable
         - S3CrudPolicy:
             BucketName: !Ref DocumentBucket
-        - Statement:
-            - Sid: "BedrockScopedAccess"
-              Effect: "Allow"
-              Action: "bedrock:InvokeModel"
-              Resource:
-                - !Sub "arn:aws:bedrock:*::foundation-model/${ModelId}"
-                - !Sub "arn:aws:bedrock:*::foundation-model/${EmbeddingModelId}"
       Environment:
         Variables:
           MEMORY_TABLE: !Ref MemoryTable
           BUCKET: !Ref DocumentBucket
-          MODEL_ID: !Ref ModelId
-          EMBEDDING_MODEL_ID: !Ref EmbeddingModelId
+          OPENAI_MODEL_ID: !Ref OpenAIMODELID
+          OPENAI_API_KEY: !Ref OpenAIAPIKey
       Events:
         Root:
           Type: Api
