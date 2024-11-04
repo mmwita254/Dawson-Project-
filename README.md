@@ -30,6 +30,10 @@ GPT for Dawson Group that harnesses Generative AI for information retrieval.
 - [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html)
 - [Python](https://www.python.org/) 3.11 or greater
 
+## Credits
+
+This project was based on work from [ServerlessPDFChat](https://github.com/aws-samples/serverless-pdf-chat).
+
 ## License
 
 This library is licensed under the MIT-0 License. See the [LICENSE](LICENSE) file.
