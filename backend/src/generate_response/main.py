@@ -67,7 +67,7 @@ def openai_chain(faiss_index, memory, human_input, file_name):
     # Create the prompt using the template
     prompt = create_prompt(file_name, human_input)
 
-    response = chain.invoke({"question": prompt})
+    response = chain.invoke({"question": human_input})
 
     sources = response.get("source_documents", [])
     source_info = []
@@ -91,11 +91,14 @@ def lambda_handler(event, context):
     faiss_index = get_faiss_index(embeddings, user, file_name)
     memory = create_memory(conversation_id)
 
+    # Create the conversation chain
     response = openai_chain(faiss_index, memory, human_input, file_name)
 
     if response:
         answer = response['answer']
         source_info = response.get("source_info", [])
+        
+        # Log the response details for debug
         print(f"{OPENAI_MODEL_ID} -\nPrompt: {human_input}\n\nResponse: {answer}\nSource Info: {source_info}")
     else:
         raise ValueError(f"Unsupported model ID: {OPENAI_MODEL_ID}")
@@ -110,6 +113,7 @@ def lambda_handler(event, context):
         },
         "body": json.dumps({
             "answer": response['answer'],
-            "source_info": response.get("source_info", [])
+            "source_info": source_info
         }),
     }
+

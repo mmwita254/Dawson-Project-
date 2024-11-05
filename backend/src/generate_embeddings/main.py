@@ -28,6 +28,17 @@ def set_doc_status(user_id, document_id, status):
     )
 
 
+def load_document_with_page_numbers(local_file_path):
+    """Load PDF and add accurate page numbers."""
+    loader = PyPDFLoader(local_file_path)
+    docs = loader.load()
+
+    # Add page number metadata
+    for i, doc in enumerate(docs):
+        doc.metadata["page"] = i + 1  # Ensure this accurately reflects PDF pages
+
+    return docs
+
 @logger.inject_lambda_context(log_event=True)
 def lambda_handler(event, context):
     """Lambda function handler to process PDF documents."""
@@ -47,21 +58,13 @@ def lambda_handler(event, context):
         s3.download_file(BUCKET, key, local_file_path)
 
         # Load the document text using PyPDFLoader
-        loader = PyPDFLoader(local_file_path)
-        docs = loader.load()
-
-        # Add page number metadata for documents
-        for i, doc in enumerate(docs):
-            doc.metadata["page"] = i + 1
-
-        # Initialize OpenAI embeddings
-        embeddings = OpenAIEmbeddings(
-            openai_api_key=OPENAI_API_KEY,
-            model="text-embedding-ada-002"
-        )
+        docs = load_document_with_page_numbers(local_file_path)
 
         # Extract text content from each Document object
         text_contents = [doc.page_content for doc in docs]
+
+        # Initialize OpenAI embeddings
+        embeddings = OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY, model="text-embedding-ada-002")
 
         # Create FAISS vectorstore from the extracted text contents
         vectorstore = FAISS.from_texts(text_contents, embeddings)
@@ -70,9 +73,7 @@ def lambda_handler(event, context):
         vectorstore.save_local("/tmp/index")
 
         # Upload the FAISS index to S3
-        s3.upload_file(
-            "/tmp/index/index.faiss", BUCKET, f"{user_id}/{file_name_full}/index.faiss"
-        )
+        s3.upload_file("/tmp/index/index.faiss", BUCKET, f"{user_id}/{file_name_full}/index.faiss")
         s3.upload_file("/tmp/index/index.pkl", BUCKET, f"{user_id}/{file_name_full}/index.pkl")
 
         # Update the document status to "READY"
@@ -82,75 +83,3 @@ def lambda_handler(event, context):
         logger.exception("Error processing document")
         set_doc_status(user_id, document_id, "FAILED")
         raise e
-# def extract_images_and_ocr_from_pdf(pdf_path):
-#     doc = fitz.open(pdf_path)
-#     ocr_texts = []
-    
-#     for page_num in range(len(doc)):
-#         page = doc.load_page(page_num)
-#         images_in_page = page.get_images(full=True)
-        
-#         for img_index, img in enumerate(images_in_page):
-#             xref = img[0]
-#             base_image = doc.extract_image(xref)
-#             image_bytes = base_image["image"]
-#             image_ext = base_image["ext"]
-#             image = Image.open(io.BytesIO(image_bytes))
-            
-#             # Perform OCR on the image
-#             ocr_text = pytesseract.image_to_string(image)
-#             ocr_texts.append({
-#                 "page": page_num + 1,
-#                 "text": ocr_text
-#             })
-    
-#     return ocr_texts
-
-@logger.inject_lambda_context(log_event=True)
-def lambda_handler(event, context):
-    event_body = json.loads(event["Records"][0]["body"])
-    document_id = event_body["documentid"]
-    user_id = event_body["user"]
-    key = event_body["key"]
-    file_name_full = key.split("/")[-1]
-
-    set_doc_status(user_id, document_id, "PROCESSING")
-
-    # Download the file from S3
-    s3.download_file(BUCKET, key, f"/tmp/{file_name_full}")
-
-    # Load the document text using PyPDFLoader
-    loader = PyPDFLoader(f"/tmp/{file_name_full}")
-    docs = loader.load()
-
-    # Add page number metadata for documents
-    for i, doc in enumerate(docs):
-        doc.metadata["page"] = i + 1
-
-    # Extract and OCR text from images in the PDF
-    # ocr_texts = extract_images_and_ocr_from_pdf(f"/tmp/{file_name_full}")
-
-    # # Combine OCR text with the original text from PyPDFLoader
-    # combined_texts = docs + [ocr["text"] for ocr in ocr_texts]
-
-    # Initialize OpenAI embeddings
-    embeddings = OpenAIEmbeddings(
-        openai_api_key=OPENAI_API_KEY,
-        model="text-embedding-ada-002"
-    )
-
-    # Create FAISS vectorstore from combined text (original + OCR text)
-    vectorstore = FAISS.from_texts(docs, embeddings)
-
-    # Save the FAISS index locally
-    vectorstore.save_local("/tmp")
-
-    # Upload the FAISS index to S3
-    s3.upload_file(
-        "/tmp/index.faiss", BUCKET, f"{user_id}/{file_name_full}/index.faiss"
-    )
-    s3.upload_file("/tmp/index.pkl", BUCKET, f"{user_id}/{file_name_full}/index.pkl")
-
-    # Update the document status to "READY"
-    set_doc_status(user_id, document_id, "READY")
-
