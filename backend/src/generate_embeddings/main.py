@@ -4,10 +4,10 @@ import boto3
 import io
 
 from aws_lambda_powertools import Logger
-from langchain_community.document_loaders import PyPDFLoader
+from langchain_community.document_loaders import PyPDFLoader, PyPDFDirectoryLoader
 from langchain_community.vectorstores import FAISS
 from langchain_openai.embeddings import OpenAIEmbeddings
-
+from zipfile import ZipFile
 
 DOCUMENT_TABLE = os.environ["DOCUMENT_TABLE"]
 BUCKET = os.environ["BUCKET"]
@@ -57,8 +57,17 @@ def lambda_handler(event, context):
         local_file_path = f"/tmp/{file_name_full}"
         s3.download_file(BUCKET, key, local_file_path)
 
-        # Load the document text using PyPDFLoader
-        docs = load_document_with_page_numbers(local_file_path)
+        # Load the document text using PyPDFLoader or PyPDFDirectoryLoader
+        # docs = load_document_with_page_numbers(local_file_path)
+        docs = []
+        if file_name_full.endswith('.zip'):
+            # Handle ZIP files containing multiple PDFs
+            pdf_paths = extract_zip_file(local_file_path)
+            for pdf_path in pdf_paths:
+                docs += load_document_with_page_numbers(pdf_path)
+        else:
+            # Handle single PDF files
+            docs = load_document_with_page_numbers(local_file_path)  
 
         # Extract text content from each Document object
         text_contents = [doc.page_content for doc in docs]

@@ -16,11 +16,17 @@ const DocumentUploader: React.FC<DocumentUploaderProps> = ({ onDocumentUploaded 
   const [inputStatus, setInputStatus] = useState<string>("idle");
   const [buttonStatus, setButtonStatus] = useState<string>("ready");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isFolder, setIsFolder] = useState<boolean>(false); // New state to determine if the uploaded file is a folder (ZIP)
 
   useEffect(() => {
     if (selectedFile) {
-      if (selectedFile.type === "application/pdf") {
+      if (selectedFile.type === "application/pdf" || selectedFile.type === "application/zip") { // Added support for ZIP files along with PDFs
         setInputStatus("valid");
+        if (selectedFile.type === "application/zip") {
+          setIsFolder(true); // Mark as folder if it's a ZIP file
+        } else {
+          setIsFolder(false);
+        }
       } else {
         setSelectedFile(null);
       }
@@ -49,7 +55,7 @@ const DocumentUploader: React.FC<DocumentUploaderProps> = ({ onDocumentUploaded 
       fetch(presignedUrl?.presignedurl, {
         method: "PUT",
         body: selectedFile,
-        headers: { "Content-Type": "application/pdf" },
+        headers: { "Content-Type": selectedFile.type }, // Update content type for ZIP and PDF
       }).then(() => {
         setButtonStatus("success");
         if (onDocumentUploaded) onDocumentUploaded();
@@ -65,7 +71,9 @@ const DocumentUploader: React.FC<DocumentUploaderProps> = ({ onDocumentUploaded 
 
   return (
     <div>
-      <h2 className="text-2xl font-bold pb-4">Add document</h2>
+      <h2 className="text-2xl font-bold pb-4">
+        {isFolder ? "Add project folder (ZIP)" : "Add document"} {/* Updated heading to indicate folder upload */}
+      </h2>
       {inputStatus === "idle" && (
         <div className="flex items-center justify-center w-full">
           <label
@@ -74,14 +82,11 @@ const DocumentUploader: React.FC<DocumentUploaderProps> = ({ onDocumentUploaded 
           >
             <div className="flex flex-col items-center justify-center pt-5 pb-6">
               <CloudArrowUpIcon className="w-12 h-12 mb-3 text-gray-400" />
-
               <p className="mb-2 text-sm text-gray-500">
-                <span className="font-semibold">Click to upload</span> your
-                document
+                <span className="font-semibold">Click to upload</span> your document (PDF or ZIP)  {/* Updated instructions to mention ZIP support */}
               </p>
-              <p className="text-xs text-gray-500">Only .pdf accepted</p>
+              <p className="text-xs text-gray-500">Only .pdf or .zip accepted</p>  {/* Updated file types allowed */}
             </div>
-
             <input
               onChange={handleFileChange}
               id="dropzone-file"
@@ -174,7 +179,6 @@ const DocumentUploader: React.FC<DocumentUploaderProps> = ({ onDocumentUploaded 
                   </button>
                 )}
                 {buttonStatus === "success" && (
-
                   <button
                     disabled
                     onClick={uploadFile}
@@ -183,9 +187,7 @@ const DocumentUploader: React.FC<DocumentUploaderProps> = ({ onDocumentUploaded 
                   >
                     <CheckCircleIcon className="w-5 h-5 mr-1.5" />
                     Upload successful!
-
                   </button>
-
                 )}
               </div>
             </>
